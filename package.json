@@ -1,0 +1,26 @@
+{
+  "name": "rn-calender",
+  "version": "0.0.0",
+  "description": "A calendar for react-native",
+  "main": "index.js",
+  "directories": {
+    "example": "example"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liuzheng644607/RN-calendar.git"
+  },
+  "keywords": [
+    "rn-calendar",
+    "calendar"
+  ],
+  "author": "lyan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/liuzheng644607/RN-calendar/issues"
+  },
+  "homepage": "https://github.com/liuzheng644607/RN-calendar#readme"
+}
