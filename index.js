@@ -189,8 +189,8 @@ const styles = create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         overflow: 'hidden',
-        // borderBottomWidth: hairlineWidth,
-        // borderBottomColor: '#eee'
+        borderBottomWidth: hairlineWidth,
+        borderBottomColor: '#eee'
     },
     weekHeader: {
         flexDirection: 'row',
