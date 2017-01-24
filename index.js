@@ -4,6 +4,7 @@ import moment from 'moment';
 
 const { width, height } = Dimensions.get('window');
 
+
 export default class Calendar extends Component {
 
     static defaultProps = {
