@@ -1,30 +1,8 @@
-/**
-* @Author: liuyany.liu <lyan>
-* @Date:   2017-01-22 14:38:57
-* @Last modified by:   lyan
-* @Last modified time: 2017-01-23 15:19:51
-*/
 
-import React, {
-  AppRegistry,
-  Component,
-  StyleSheet,
-  TouchableOpacity,
-  TouchableHighlight,
-  cloneElement,
-  Text,
-  View,
-  Platform,
-  Image,
-  ListView,
-  Dimensions,
-  PanResponder,
-  TextInput,
-  Animated
-} from 'react-native';
+import React, { Component, StyleSheet, TouchableHighlight, Text, View, ListView, Dimensions } from 'react-native';
 import moment from 'moment';
 
-const { width, height, scale } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default class Calendar extends Component {
 
@@ -32,7 +10,8 @@ export default class Calendar extends Component {
         startDate: moment().format('YYYY-MM-DD'),
         endDate: '2018-01-27',
         disabledDate: () => null,
-        onChange: () => true,
+        onChange: () => {},
+        range: false,
         defaultValue: []
     }
     //
@@ -47,7 +26,6 @@ export default class Calendar extends Component {
             sectionHeaderHasChanged: (s1, s2) => s1 !== s2
         })
     }
-
 
     componentWillMount() {
         let { startDate, endDate } = this.props;
@@ -72,7 +50,7 @@ export default class Calendar extends Component {
 
     _renderRow(rowData: string, sectionID: string, rowID: string) {
         return (
-            <Month {...rowData}/>
+            <Month onPress={(date) => this._onPress(date)} {...rowData}/>
         )
     }
 
@@ -96,6 +74,33 @@ export default class Calendar extends Component {
         );
     }
 
+    _onPress(date) {
+        let value = this.value;
+        let { range, onChange } = this.props;
+
+        if (!value) {
+            value = this.value = [];
+        }
+        if (!value[0]) {
+            value[0] = date;
+        }
+
+        if (range && value.length === 1 && date !== value[0]) {
+            if (moment(value[0]).isSameOrAfter(moment(date), 'day')) {
+                value[0] = date;
+            } else {
+                value[1] = date;
+                onChange && onChange(value.slice());
+                this.value = null;
+            }
+        }
+
+        if (!range) {
+            this.props.onChange && this.props.onChange(value.slice());
+            this.value = null;
+        }
+    }
+
     render() {
         return (
             <View style={[styles.container]}>
@@ -116,7 +121,7 @@ export default class Calendar extends Component {
  */
 class Month extends Component {
     render() {
-        let { month, year } = this.props;
+        let { month, year, onPress } = this.props;
         let startDay        = moment().year(year).month(month).date(1),
             endDay          = moment().year(year).month(month).date(1).add(1, 'month'),
             days            = [],
@@ -141,7 +146,7 @@ class Month extends Component {
                 })}
                 {days.map((item, i) => {
                     return (
-                        <Day key={i} {...item}/>
+                        <Day key={i} {...item} onPress={onPress}/>
                     )
                 })}
             </View>
@@ -150,48 +155,79 @@ class Month extends Component {
 }
 
 class Day extends Component {
+    _onPress(date, e) {
+        this.props.onPress(date);
+    }
     render() {
         let { date, text } = this.props;
 
         return (
             <View style={styles.dayItem}>
                 <TouchableHighlight
-                    underlayColor="#ff0000"
-                    activeOpacity={0.3}
+                    underlayColor="#108ee9"
+                    style={styles.dayItemInner}
+                    ref={(c) => this._refDay = c}
+                    onPress={(e) => this._onPress(date, e)}
                     >
                     <View>
-                        <Text>{text}</Text>
+                        <Text style={styles.dateText}>{text}</Text>
                     </View>
                 </TouchableHighlight>
             </View>
         )
     }
 }
-
+const { hairlineWidth, create } = StyleSheet;
 const dayItemSize = (width / 7) - 1;
 
-const styles = StyleSheet.create({
+const styles = create({
     container: {
-        flex: 1
+        flex: 1,
+        backgroundColor: '#fff',
     },
     monthContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        // borderBottomWidth: hairlineWidth,
+        // borderBottomColor: '#eee'
     },
     weekHeader: {
-        flexDirection: 'row'
+        flexDirection: 'row',
+        paddingVertical: 15,
+        backgroundColor: '#fff',
+        borderBottomWidth: hairlineWidth,
+        borderBottomColor: '#aaa'
     },
     weekHeaderItem: {
-        width: dayItemSize
+        width: dayItemSize,
+        alignItems: 'center',
     },
     monthHeader: {
-        alignItems: 'center',
+        paddingVertical: 10,
+        backgroundColor: '#fff',
+        borderBottomWidth: hairlineWidth,
+        borderBottomColor: '#ccc'
     },
     dayItem: {
         alignItems: 'center',
+        justifyContent: 'center',
         width: dayItemSize,
-        height: 30,
+        height: dayItemSize,
         overflow: 'hidden',
+        borderBottomWidth: hairlineWidth,
+        borderBottomColor: '#eee'
+    },
+    dayItemInner: {
+        height: 38,
+        width: 38,
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 19
+    },
+    dateText: {
+        color: '#333',
+        fontSize: 14
     }
 });
