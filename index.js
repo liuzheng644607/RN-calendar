@@ -1,5 +1,17 @@
 
-import React, { Component, StyleSheet, TouchableHighlight, Text, View, ListView, Dimensions } from 'react-native';
+import {
+    StyleSheet,
+    TouchableHighlight,
+    Text,
+    View,
+    ListView,
+    Dimensions
+} from 'react-native';
+
+import React, {
+    Component
+} from 'react';
+
 import moment from 'moment';
 
 const { width, height } = Dimensions.get('window');
