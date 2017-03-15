@@ -49,7 +49,7 @@ export default class Calendar extends Component {
         while (endDate.isSameOrAfter(startDate, 'day')) {
             let year     = startDate.year(),
                 month    = startDate.month(),
-                dateKey  = `${year}, ${month+1}`;
+                dateKey  = `${year},${month+1}`;
 
             monthsMap[dateKey] = [{year, month}];
             startDate = startDate.add(1, 'month');
@@ -136,8 +136,7 @@ class Month extends Component {
         let { month, year, onPress } = this.props;
         let startDay        = moment().year(year).month(month).date(1),
             endDay          = moment().year(year).month(month).date(1).add(1, 'month'),
-            days            = [],
-            emptyDays       = [];
+            days            = [];
 
         while (endDay.isAfter(startDay, 'day')) {
             let date = startDay.format('YYYY-MM-DD');
@@ -150,17 +149,28 @@ class Month extends Component {
             startDay = startDay.add(1, 'day');
         }
 
-        emptyDays = (new Array(moment().year(year).month(month).date(0).day())).fill(1);
+        var emptyDays = (new Array(moment().year(year).month(month).date(0).day())).fill(1);
+        var newArr = emptyDays.concat(days);
+        var len = newArr.length;
+        var row = [];
+
+        for (let i = 0; i < len ; i += 7) {
+            let cell = [];
+            for (let j = i; j <= i + 6; j++) {
+                if (j < len) {
+                    if (newArr[j] === 1) {
+                        cell.push(<View key={j} style={styles.dayItem} />);
+                    } else {
+                        cell.push(<Day key={j} {...newArr[j]} onPress={onPress}/>)
+                    }
+                }
+            }
+            row.push(<View style={styles.row} key={i}>{cell}</View>);
+        }
+        
         return (
             <View style={styles.monthContainer}>
-                {emptyDays.map((item, i) => {
-                    return <View key={i} style={styles.dayItem} />
-                })}
-                {days.map((item, i) => {
-                    return (
-                        <Day key={i} {...item} onPress={onPress}/>
-                    )
-                })}
+                {row}
             </View>
         )
     }
@@ -197,12 +207,15 @@ const styles = create({
         flex: 1,
         backgroundColor: '#fff',
     },
-    monthContainer: {
+    row: {
         flexDirection: 'row',
+        borderBottomWidth: hairlineWidth,
+        borderBottomColor: '#ddd'
+    },
+    monthContainer: {
+        // flexDirection: 'row',
         flexWrap: 'wrap',
-        overflow: 'hidden',
-        // borderBottomWidth: hairlineWidth,
-        // borderBottomColor: '#eee'
+        overflow: 'hidden'
     },
     weekHeader: {
         flexDirection: 'row',
@@ -227,8 +240,8 @@ const styles = create({
         width: dayItemSize,
         height: dayItemSize,
         overflow: 'hidden',
-        borderBottomWidth: hairlineWidth,
-        borderBottomColor: '#eee'
+        // borderBottomWidth: hairlineWidth,
+        // borderBottomColor: '#eee'
     },
     dayItemInner: {
         height: 38,
