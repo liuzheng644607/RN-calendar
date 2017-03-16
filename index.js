@@ -22,10 +22,10 @@ export default class Calendar extends Component {
         startDate: moment().format('YYYY-MM-DD'),
         endDate: '2018-01-27',
         disabledDate: () => null,
-        onChange: () => {},
-        range: false,
-        defaultValue: []
+        onChange: (e) => {console.log(e);},
+        range: true
     }
+
     //
     // static propTypes = {
     //     startDate: React.PropTypes.Array,
@@ -36,7 +36,8 @@ export default class Calendar extends Component {
         dataSource: new ListView.DataSource({
             rowHasChanged: (r1, r2) => r1 !== r2,
             sectionHeaderHasChanged: (s1, s2) => s1 !== s2
-        })
+        }),
+        selectedDate: {fromDate: '2017-04-01', toDate: '2017-04-04'}
     }
 
     componentWillMount() {
@@ -167,7 +168,7 @@ class Month extends Component {
             }
             row.push(<View style={styles.row} key={i}>{cell}</View>);
         }
-        
+
         return (
             <View style={styles.monthContainer}>
                 {row}
