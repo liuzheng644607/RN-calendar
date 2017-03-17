@@ -5,6 +5,7 @@ import {
     Text,
     View,
     ListView,
+    ScrollView,
     Dimensions
 } from 'react-native';
 
@@ -20,9 +21,10 @@ export default class Calendar extends Component {
 
     static defaultProps = {
         startDate: moment().format('YYYY-MM-DD'),
-        endDate: '2018-01-27',
+        endDate: '2017-05-27',
         disabledDate: () => null,
         onChange: (e) => {console.log(e);},
+        selectedDate: ['2017-04-01', '2017-04-03'],
         range: true
     }
 
@@ -35,14 +37,18 @@ export default class Calendar extends Component {
     state = {
         dataSource: new ListView.DataSource({
             rowHasChanged: (r1, r2) => r1 !== r2,
-            sectionHeaderHasChanged: (s1, s2) => s1 !== s2
+            sectionHeaderHasChanged: (s1, s2) => {
+                alert(s1, s2)
+                return s1 !== s2
+            }
         }),
-        selectedDate: {fromDate: '2017-04-01', toDate: '2017-04-04'}
+        selectedDate: this.props.selectedDate
     }
 
     componentWillMount() {
         let { startDate, endDate } = this.props;
         let monthsMap = {};
+        let data = [];
         startDate     = moment(startDate);
         endDate       = moment(endDate);
 
@@ -51,27 +57,42 @@ export default class Calendar extends Component {
             let year     = startDate.year(),
                 month    = startDate.month(),
                 dateKey  = `${year},${month+1}`;
-
             monthsMap[dateKey] = [{year, month}];
+
+            data.push({year, month});
             startDate = startDate.add(1, 'month');
         }
 
         this.setState({
-            dataSource: this.state.dataSource.cloneWithRowsAndSections(monthsMap)
+            dataSource: data
         });
     }
 
-    _renderRow(rowData: string, sectionID: string, rowID: string) {
+    _renderScrollView() {
+        var scrollItem = [];
+        var stickyHeaderIndices = [];
+        this.state.dataSource.map((item, index) => {
+            scrollItem.push(this._renderSectionHeader(item, scrollItem.length));
+
+            stickyHeaderIndices.push(scrollItem.length - 1);
+
+            scrollItem.push(<Month key={scrollItem.length} selected={this.state.selectedDate} onPress={(date) => this._onPress(date)} {...item}/>)
+        });
+
         return (
-            <Month onPress={(date) => this._onPress(date)} {...rowData}/>
-        )
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                stickyHeaderIndices={stickyHeaderIndices}
+                >
+                {scrollItem}
+            </ScrollView>
+        );
     }
 
-    _renderSectionHeader(sData, sID) {
-        let data = sID.split(','),
-            year = data[0],
-            month = data[1];
-        return <View style={styles.monthHeader}><Text>{`${year}年 ${month}月`}</Text></View>;
+    _renderSectionHeader(item, key) {
+        let year = item.year,
+            month = item.month + 1;
+        return <View key={key} style={styles.monthHeader}><Text>{`${year}年 ${month}月`}</Text></View>;
     }
 
     _renderHeader() {
@@ -89,6 +110,7 @@ export default class Calendar extends Component {
 
     _onPress(date) {
         let value = this.value;
+        let selected;
         let { range, onChange } = this.props;
 
         if (!value) {
@@ -98,32 +120,34 @@ export default class Calendar extends Component {
             value[0] = date;
         }
 
+        selected = value.slice();
+
         if (range && value.length === 1 && date !== value[0]) {
             if (moment(value[0]).isSameOrAfter(moment(date), 'day')) {
                 value[0] = date;
             } else {
                 value[1] = date;
-                onChange && onChange(value.slice());
+                selected = value.slice();
+                onChange && onChange(selected);
                 this.value = null;
             }
         }
 
         if (!range) {
-            this.props.onChange && this.props.onChange(value.slice());
+            selected = value.slice();
+            this.props.onChange && this.props.onChange(selected);
             this.value = null;
         }
+        this.setState({
+            selectedDate: selected
+        });
     }
 
     render() {
         return (
             <View style={[styles.container]}>
                 {this._renderHeader()}
-                <ListView
-                    dataSource={this.state.dataSource}
-                    renderRow={ this._renderRow.bind(this)}
-                    renderSectionHeader={this._renderSectionHeader.bind(this)}
-                    showsVerticalScrollIndicator={false}
-                />
+                {this._renderScrollView()}
             </View>
         );
     }
@@ -133,8 +157,9 @@ export default class Calendar extends Component {
  * 日历月份
  */
 class Month extends Component {
+
     render() {
-        let { month, year, onPress } = this.props;
+        let { month, year, onPress, selected } = this.props;
         let startDay        = moment().year(year).month(month).date(1),
             endDay          = moment().year(year).month(month).date(1).add(1, 'month'),
             days            = [];
@@ -154,6 +179,7 @@ class Month extends Component {
         var newArr = emptyDays.concat(days);
         var len = newArr.length;
         var row = [];
+        var selectedDays = selected;
 
         for (let i = 0; i < len ; i += 7) {
             let cell = [];
@@ -162,7 +188,13 @@ class Month extends Component {
                     if (newArr[j] === 1) {
                         cell.push(<View key={j} style={styles.dayItem} />);
                     } else {
-                        cell.push(<Day key={j} {...newArr[j]} onPress={onPress}/>)
+                        let _selected = selectedDays.some((item) => {
+                            return newArr[j].date === item;
+                        });
+                        let status = {
+                            selected: _selected
+                        }
+                        cell.push(<Day key={j} {...newArr[j]} status={status} onPress={onPress}/>)
                     }
                 }
             }
@@ -181,14 +213,22 @@ class Day extends Component {
     _onPress(date, e) {
         this.props.onPress(date);
     }
-    render() {
-        let { date, text } = this.props;
 
+    shouldComponentUpdate(nextProps) {
+        return nextProps.status.selected !== this.props.status.selected
+    }
+
+    render() {
+        let { date, text, status } = this.props;
+        let style = {};
+        if (status.selected) {
+            style.backgroundColor = '#108ee9';
+        }
         return (
             <View style={styles.dayItem}>
                 <TouchableHighlight
                     underlayColor="#108ee9"
-                    style={styles.dayItemInner}
+                    style={[styles.dayItemInner, style]}
                     ref={(c) => this._refDay = c}
                     onPress={(e) => this._onPress(date, e)}
                     >
