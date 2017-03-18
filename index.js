@@ -30,6 +30,8 @@ export default class Calendar extends Component {
         enableDateRange: [moment().format(DATE_FORMAT), moment().add(90, 'day').format(DATE_FORMAT)],
         selectedDate: [],
         renderHeader: null,
+        renderMonthHeader: null,
+        renderDate: null,
         isRange: true,
         animate: true,
     }
@@ -76,7 +78,15 @@ export default class Calendar extends Component {
         var scrollItem = [];
         var stickyHeaderIndices = [];
         this.state.dataSource.map((item, index) => {
-            scrollItem.push(this._renderSectionHeader(item, scrollItem.length));
+            scrollItem.push(
+                <View key={scrollItem.length}>
+                    {
+                        this.props.renderMonthHeader &&
+                        this.props.renderMonthHeader(item) ||
+                        this._renderSectionHeader(item)
+                    }
+                </View>
+            );
 
             stickyHeaderIndices.push(scrollItem.length - 1);
 
@@ -93,10 +103,10 @@ export default class Calendar extends Component {
         );
     }
 
-    _renderSectionHeader(item, key) {
+    _renderSectionHeader(item) {
         let year = item.year,
             month = item.month + 1;
-        return <View key={key} style={styles.monthHeader}><Text>{`${year}年 ${month}月`}</Text></View>;
+        return <View style={styles.monthHeader}><Text>{`${year}年 ${month}月`}</Text></View>;
     }
 
     _renderHeader() {
