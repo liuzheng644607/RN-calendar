@@ -21,44 +21,18 @@ import moment from 'moment';
 
 const { width, height } = Dimensions.get('window');
 
+let DATE_FORMAT = 'YYYY-MM-DD';
+
 export default class Calendar extends Component {
 
     static defaultProps = {
-        startDate: moment().format('YYYY-MM-DD'),
-        endDate: '2018-05-27',
-        validDate: [moment().format('YYYY-MM-DD'), moment().add(100, 'day').format('YYYY-MM-DD')],
-        renderDate: (param = {}) => {
-            const { selected, innerSelected, date, text, disable } = param;
-        },
-        onChange: (e) => {},
-        selectedDate: ['2017-04-01', '2017-04-09'],
-        range: true,
-        animate: false,
-        holiday: {
-            '2017-05-01': {
-                text: '劳动节',
-                textStyle: {
-                    color: '#ef473a'
-                },
-                style: {}
-            }
-        },
-        note: {
-            '2017-06-30': {
-                text: '特价',
-                textStyle: {
-                    color: '#ef473a'
-                },
-                style: {}
-            }
-        }
+        showDateRange: [moment().format(DATE_FORMAT), moment().add(100, 'day').format(DATE_FORMAT)],
+        enableDateRange: [moment().format(DATE_FORMAT), moment().add(90, 'day').format(DATE_FORMAT)],
+        selectedDate: [],
+        renderHeader: null,
+        isRange: true,
+        animate: true,
     }
-
-    //
-    // static propTypes = {
-    //     startDate: React.PropTypes.Array,
-    //     endDate: React.propTypes.Array
-    // }
 
     state = {
         dataSource: new ListView.DataSource({
@@ -72,8 +46,12 @@ export default class Calendar extends Component {
     }
 
     componentWillMount() {
-        let { startDate, endDate, animate } = this.props;
+        const { showDateRange, animate } = this.props;
+
+        let startDate = showDateRange[0];
+        let endDate = showDateRange[1];
         let data = [];
+
         startDate     = moment(startDate);
         endDate       = moment(endDate);
 
@@ -135,10 +113,16 @@ export default class Calendar extends Component {
     }
 
     _onPress(param = {}, e) {
+
+        let { isRange, onChange, onPress } = this.props;
+
+        onPress && onPress(param, e);
+
+        if (param.disable) return;
+
         let date = param.date;
         let value = this.value;
         let selected;
-        let { range, onChange, onPress } = this.props;
 
         if (!value) {
             value = this.value = [];
@@ -147,20 +131,20 @@ export default class Calendar extends Component {
             value[0] = date;
         }
 
-        if (range && value.length === 1 && date !== value[0]) {
+        if (isRange && value.length === 1 && date !== value[0]) {
             if (moment(value[0]).isSameOrAfter(moment(date), 'day')) {
                 value[0] = date;
             } else {
                 value[1] = date;
                 selected = value.slice();
-                onChange && onChange(selected);
+                onChange && onChange(selected, e);
                 this.value = null;
             }
         }
 
-        if (!range) {
+        if (!isRange) {
             selected = value.slice();
-            this.props.onChange && this.props.onChange(selected);
+            this.props.onChange && this.props.onChange(selected, e);
             this.value = null;
         }
 
@@ -171,14 +155,12 @@ export default class Calendar extends Component {
         this.setState({
             selectedDate: selected
         });
-
-        onPress && onPress(param, e);
     }
 
     render() {
         return (
             <View style={[styles.container]}>
-                {this._renderHeader()}
+                {this.props.renderHeader && this.props.renderHeader() || this._renderHeader()}
                 {this._renderScrollView()}
             </View>
         );
@@ -196,20 +178,29 @@ class Month extends Component {
     }
 
     _makeMonth() {
-        let { month, year, onPress, selected, holiday, note, renderDate, animate } = this.props;
+
+        let { month, year, onPress, selected, holiday, note, renderDate, animate, isRange, enableDateRange} = this.props;
+
         if (!this._allDate) {
-            var startDay    = moment().year(year).month(month).date(1),
-            endDay          = moment().year(year).month(month).date(1).add(1, 'month'),
-            days            = [];
+            var startDay = moment().year(year).month(month).date(1),
+                endDay = moment().year(year).month(month).date(1).add(1, 'month'),
+                rangeStart = moment(enableDateRange[0]),
+                rangeEnd = moment(enableDateRange[1]),
+                days  = [];
 
             this._dayMaps = {};
 
             while (endDay.isAfter(startDay, 'day')) {
-                let date = startDay.format('YYYY-MM-DD');
+                let date = startDay.format(DATE_FORMAT);
 
                 let day = {
                     date: date,
                     text: startDay.date()
+                }
+
+                // filter disabled
+                if (rangeStart.isAfter(startDay, 'day') || startDay.isAfter(rangeEnd, 'day')) {
+                    day.disable = true;
                 }
 
                 days.push(day);
@@ -233,23 +224,32 @@ class Month extends Component {
         var len = newArr.length;
         var row = [];
         var selectedDaysObj = {};
+        var start;
+        var end;
+
         selected.map((item) => {
             selectedDaysObj[item] = true;
         });
-        if (selected.length === 2) {
-            var start = new Date(selected[0]).getTime();
-            var end = new Date(selected[1]).getTime();
+
+        !isRange && selected[0] && (selectedDaysObj = {[selected[0]]: true});
+
+        if (isRange && selected.length === 2) {
+            start = new Date(selected[0]).getTime();
+            end = new Date(selected[1]).getTime();
         }
+
         for (let i = 0; i < len ; i += 7) {
             let cell = [];
             for (let j = i; j <= i + 6; j++) {
                 if (j < len) {
-                    let date = newArr[j].date
+                    let date = newArr[j].date;
+                    let disable = newArr[j].disable;
                     let _selected = date && selectedDaysObj[date] || false;
 
                     let status = {
                         selected: date && _selected,
-                        innerSelected: false
+                        innerSelected: false,
+                        disable
                     }
 
                     if (start && end && date) {
@@ -263,8 +263,6 @@ class Month extends Component {
                         ...(dayMaps[date] || {}),
                         ...status
                     }
-
-                    let _props = newArr[j] || {};
 
                     cell.push(<Day dayInfo={dayInfo} renderDate={renderDate} animate={animate} key={j} onPress={onPress}/>)
                 }
@@ -299,26 +297,10 @@ class Day extends Component {
     _onPress(date, e) {
 
         const { dayInfo } = this.props;
-        const { text, selected, innerSelected, holiday, note, active } = dayInfo;
-        const param = { selected, innerSelected, date, text };
+        const { text, selected, innerSelected, disable, holiday, note, active } = dayInfo;
+        const param = { selected, innerSelected, date, text, disable };
 
         this.props.onPress(param, e);
-    }
-
-    renderDate() {
-
-        const { dayInfo, renderDate} = this.props;
-        const { date, text, selected, innerSelected, holiday, note, active } = dayInfo;
-        const param = { selected, innerSelected, date, text };
-        const result = renderDate && renderDate(param);
-
-        return {
-            text,
-            dateTextStyle: {},
-            dateBoxStyle: {},
-            noteTextStyle: {},
-            ...result
-        }
     }
 
     shouldComponentUpdate(nextProps) {
@@ -386,6 +368,11 @@ class Day extends Component {
             dayTextStyle.push(selectedStyle);
         }
 
+        if (disable) {
+            dayTextStyle.push(styles.disableText);
+            noteTextStyle.push(styles.disableText);
+        }
+
         //finnaly show text
         var showText = (holiday && holiday.text) || text;
 
@@ -415,14 +402,17 @@ class Day extends Component {
         )
     }
 }
+
 const { hairlineWidth, create } = StyleSheet;
-const dayItemSize = (width / 7) - 1;
+const marginEdge = 0;
+const dayItemSize = ((width - marginEdge * 2) / 7);
 const dayItemInner = dayItemSize - 15;
 const THEME_COLOR = '#11c1f3';
+
 const styles = create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#fefefe'
     },
     row: {
         flexDirection: 'row',
@@ -446,7 +436,7 @@ const styles = create({
         alignItems: 'center',
     },
     monthHeader: {
-        paddingVertical: 10,
+        padding: 15,
         backgroundColor: '#fff',
         borderBottomWidth: hairlineWidth,
         borderBottomColor: '#ccc'
@@ -479,6 +469,9 @@ const styles = create({
     },
     holidayText: {
         fontSize: 12
+    },
+    disableText: {
+        color: '#bbb',
     },
     dateText: {
         color: '#333',
