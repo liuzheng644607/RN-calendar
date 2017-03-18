@@ -5,8 +5,10 @@ import {
     Text,
     View,
     ListView,
+    LayoutAnimation,
     ScrollView,
-    Dimensions
+    Dimensions,
+    UIManager
 } from 'react-native';
 
 import React, {
@@ -15,15 +17,17 @@ import React, {
 
 import moment from 'moment';
 
+UIManager.setLayoutAnimationEnabledExperimental && UIManager.setLayoutAnimationEnabledExperimental(true);
+
 const { width, height } = Dimensions.get('window');
 
 export default class Calendar extends Component {
 
     static defaultProps = {
         startDate: moment().format('YYYY-MM-DD'),
-        endDate: '2017-05-27',
+        endDate: '2018-05-27',
         disabledDate: () => null,
-        onChange: (e) => {console.log(e);},
+        // onChange: (e) => {console.log(e);},
         selectedDate: ['2017-04-01', '2017-04-03'],
         range: true
     }
@@ -47,7 +51,6 @@ export default class Calendar extends Component {
 
     componentWillMount() {
         let { startDate, endDate } = this.props;
-        let monthsMap = {};
         let data = [];
         startDate     = moment(startDate);
         endDate       = moment(endDate);
@@ -57,7 +60,6 @@ export default class Calendar extends Component {
             let year     = startDate.year(),
                 month    = startDate.month(),
                 dateKey  = `${year},${month+1}`;
-            monthsMap[dateKey] = [{year, month}];
 
             data.push({year, month});
             startDate = startDate.add(1, 'month');
@@ -120,8 +122,6 @@ export default class Calendar extends Component {
             value[0] = date;
         }
 
-        selected = value.slice();
-
         if (range && value.length === 1 && date !== value[0]) {
             if (moment(value[0]).isSameOrAfter(moment(date), 'day')) {
                 value[0] = date;
@@ -138,6 +138,11 @@ export default class Calendar extends Component {
             this.props.onChange && this.props.onChange(selected);
             this.value = null;
         }
+
+        if (!selected) {
+            selected = value.slice();
+        }
+
         this.setState({
             selectedDate: selected
         });
@@ -158,44 +163,67 @@ export default class Calendar extends Component {
  */
 class Month extends Component {
 
-    render() {
+    constructor(props) {
+        super(props);
+        this.view = null;
+    }
+
+    _makeMonth() {
         let { month, year, onPress, selected } = this.props;
-        let startDay        = moment().year(year).month(month).date(1),
+        if (!this._allDate) {
+            let startDay    = moment().year(year).month(month).date(1),
             endDay          = moment().year(year).month(month).date(1).add(1, 'month'),
             days            = [];
 
-        while (endDay.isAfter(startDay, 'day')) {
-            let date = startDay.format('YYYY-MM-DD');
+            while (endDay.isAfter(startDay, 'day')) {
+                let date = startDay.format('YYYY-MM-DD');
 
-            days.push({
-                date: date,
-                text: startDay.date()
-            });
+                days.push({
+                    date: date,
+                    text: startDay.date()
+                });
 
-            startDay = startDay.add(1, 'day');
+                startDay = startDay.add(1, 'day');
+            }
+
+            var emptyDays = (new Array(moment().year(year).month(month).date(0).day())).fill(0);
+            this._allDate = emptyDays.concat(days);
         }
 
-        var emptyDays = (new Array(moment().year(year).month(month).date(0).day())).fill(1);
-        var newArr = emptyDays.concat(days);
+        var newArr = this._allDate;
         var len = newArr.length;
         var row = [];
-        var selectedDays = selected;
-
+        var selectedDaysObj = {};
+        selected.map((item) => {
+            selectedDaysObj[item] = true;
+        });
+        if (selected.length === 2) {
+            var start = new Date(selected[0]).getTime();
+            var end = new Date(selected[1]).getTime();
+        }
         for (let i = 0; i < len ; i += 7) {
             let cell = [];
             for (let j = i; j <= i + 6; j++) {
                 if (j < len) {
-                    if (newArr[j] === 1) {
-                        cell.push(<View key={j} style={styles.dayItem} />);
-                    } else {
-                        let _selected = selectedDays.some((item) => {
-                            return newArr[j].date === item;
-                        });
-                        let status = {
-                            selected: _selected
-                        }
-                        cell.push(<Day key={j} {...newArr[j]} status={status} onPress={onPress}/>)
+                    let date = newArr[j].date
+                    let _selected = date && selectedDaysObj[date] || false;
+
+                    let status = {
+                        selected: date && _selected,
+                        isRange: false
                     }
+
+                    if (start && end && date) {
+                        let _time = new Date(date).getTime();
+                        if ( _time > start && _time < end) {
+                            status.selected = true;
+                            status.isRange = true;
+                        }
+                    }
+
+                    let _props = newArr[j] || {};
+
+                    cell.push(<Day key={j} {..._props} status={status} onPress={onPress}/>)
                 }
             }
             row.push(<View style={styles.row} key={i}>{cell}</View>);
@@ -207,6 +235,10 @@ class Month extends Component {
             </View>
         )
     }
+
+    render() {
+        return this._makeMonth();
+    }
 }
 
 class Day extends Component {
@@ -215,15 +247,31 @@ class Day extends Component {
     }
 
     shouldComponentUpdate(nextProps) {
-        return nextProps.status.selected !== this.props.status.selected
+        let a = nextProps.status.selected === !this.props.status.selected;
+        return a
     }
 
     render() {
         let { date, text, status } = this.props;
-        let style = {};
-        if (status.selected) {
-            style.backgroundColor = '#108ee9';
+
+        if (!date) {
+            return <View style={styles.dayItem} />;
         }
+
+        let style = {};
+        let selectedStyle = {}
+        if (status.selected) {
+            if (status.isRange) {
+                selectedStyle.color = '#108ee9';
+            } else {
+                style.backgroundColor = '#108ee9';
+                selectedStyle.color = '#fff';
+            }
+            selectedStyle.fontSize = 16;
+        }
+
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
         return (
             <View style={styles.dayItem}>
                 <TouchableHighlight
@@ -233,16 +281,18 @@ class Day extends Component {
                     onPress={(e) => this._onPress(date, e)}
                     >
                     <View>
-                        <Text style={styles.dateText}>{text}</Text>
+                        <Text style={[styles.dateText, selectedStyle]}>{text}</Text>
                     </View>
                 </TouchableHighlight>
+                <View style={styles.dayTextItem}>
+                </View>
             </View>
         )
     }
 }
 const { hairlineWidth, create } = StyleSheet;
 const dayItemSize = (width / 7) - 1;
-
+const dayItemInner = dayItemSize - 15;
 const styles = create({
     container: {
         flex: 1,
@@ -279,21 +329,30 @@ const styles = create({
         alignItems: 'center',
         justifyContent: 'center',
         width: dayItemSize,
-        height: dayItemSize,
+        height: dayItemSize + 15,
+        paddingBottom: 15,
         overflow: 'hidden',
         // borderBottomWidth: hairlineWidth,
         // borderBottomColor: '#eee'
     },
     dayItemInner: {
-        height: 38,
-        width: 38,
+        height: dayItemInner,
+        width: dayItemInner,
         overflow: 'hidden',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 19
+        borderRadius: (dayItemInner)/2
     },
     dateText: {
         color: '#333',
         fontSize: 14
-    }
+    },
+    dayTextItem: {
+        position: 'absolute',
+        bottom: 0,
+        width: dayItemSize,
+        height: 15,
+        alignItems: 'center'
+    },
+
 });
