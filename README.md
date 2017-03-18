@@ -10,5 +10,4 @@ A react-native calendar
 see [demo](./demo/)
 
 
-![ios screenshoot](./demo/ios.gif)
-![android screenshoot](./demo/android.gif)
+![ios screenshoot](./demo/ios.gif)  ![android screenshoot](./demo/android.gif)
