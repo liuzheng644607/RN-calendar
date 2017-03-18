@@ -1,5 +1,5 @@
 {
-  "name": "rn-calender",
+  "name": "react-native-range-calendar",
   "version": "0.0.0",
   "description": "A calendar for react-native",
   "main": "index.js",
