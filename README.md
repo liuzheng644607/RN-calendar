@@ -7,6 +7,9 @@ A react-native calendar
 3. holiday and note;
 
 ## Usage
+
+``` npm install react-native-range-calendar --save ```
+
 see [demo](./demo/)
 
 
