@@ -2,6 +2,7 @@
 import {
     StyleSheet,
     TouchableHighlight,
+    TouchableOpacity,
     Text,
     View,
     ListView,
@@ -17,39 +18,38 @@ import React, {
 
 import moment from 'moment';
 
-UIManager.setLayoutAnimationEnabledExperimental && UIManager.setLayoutAnimationEnabledExperimental(true);
 
 const { width, height } = Dimensions.get('window');
-const today = new Date(),
-      todayStr = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
 
 export default class Calendar extends Component {
 
     static defaultProps = {
         startDate: moment().format('YYYY-MM-DD'),
         endDate: '2018-05-27',
-        disabledDate: () => null,
-        // onChange: (e) => {console.log(e);},
-        selectedDate: ['2017-04-01', '2017-04-03'],
+        validDate: [moment().format('YYYY-MM-DD'), moment().add(100, 'day').format('YYYY-MM-DD')],
+        renderDate: (param = {}) => {
+            const { selected, innerSelected, date, text, disable } = param;
+        },
+        onChange: (e) => {},
+        selectedDate: ['2017-04-01', '2017-04-09'],
         range: true,
-
+        animate: false,
         holiday: {
             '2017-05-01': {
                 text: '劳动节',
-                textStyle: {},
+                textStyle: {
+                    color: '#ef473a'
+                },
                 style: {}
             }
         },
-
-        active: {
-            [todayStr]: {
-                text: '今天'
-            }
-        },
-
         note: {
             '2017-06-30': {
-                text: '特价'
+                text: '特价',
+                textStyle: {
+                    color: '#ef473a'
+                },
+                style: {}
             }
         }
     }
@@ -72,7 +72,7 @@ export default class Calendar extends Component {
     }
 
     componentWillMount() {
-        let { startDate, endDate } = this.props;
+        let { startDate, endDate, animate } = this.props;
         let data = [];
         startDate     = moment(startDate);
         endDate       = moment(endDate);
@@ -90,6 +90,8 @@ export default class Calendar extends Component {
         this.setState({
             dataSource: data
         });
+
+        animate && UIManager.setLayoutAnimationEnabledExperimental && UIManager.setLayoutAnimationEnabledExperimental(true);
     }
 
     _renderScrollView() {
@@ -132,10 +134,11 @@ export default class Calendar extends Component {
         );
     }
 
-    _onPress(date) {
+    _onPress(param = {}, e) {
+        let date = param.date;
         let value = this.value;
         let selected;
-        let { range, onChange } = this.props;
+        let { range, onChange, onPress } = this.props;
 
         if (!value) {
             value = this.value = [];
@@ -168,6 +171,8 @@ export default class Calendar extends Component {
         this.setState({
             selectedDate: selected
         });
+
+        onPress && onPress(param, e);
     }
 
     render() {
@@ -191,7 +196,7 @@ class Month extends Component {
     }
 
     _makeMonth() {
-        let { month, year, onPress, selected, holiday, note } = this.props;
+        let { month, year, onPress, selected, holiday, note, renderDate, animate } = this.props;
         if (!this._allDate) {
             var startDay    = moment().year(year).month(month).date(1),
             endDay          = moment().year(year).month(month).date(1).add(1, 'month'),
@@ -202,12 +207,17 @@ class Month extends Component {
             while (endDay.isAfter(startDay, 'day')) {
                 let date = startDay.format('YYYY-MM-DD');
 
-                days.push({
+                let day = {
                     date: date,
                     text: startDay.date()
-                });
+                }
 
-                this._dayMaps[date] = {};
+                days.push(day);
+
+                this._dayMaps[date] = day;
+
+                this._mergeDateData('holiday', holiday, this._dayMaps);
+                this._mergeDateData('note', note, this._dayMaps);
 
                 startDay = startDay.add(1, 'day');
             }
@@ -218,8 +228,6 @@ class Month extends Component {
 
         var dayMaps = this._dayMaps;
 
-        this._mergeDateData('holiday', holiday, dayMaps);
-        this._mergeDateData('note', note, dayMaps);
 
         var newArr = this._allDate;
         var len = newArr.length;
@@ -241,20 +249,24 @@ class Month extends Component {
 
                     let status = {
                         selected: date && _selected,
-                        isRange: false
+                        innerSelected: false
                     }
 
                     if (start && end && date) {
                         let _time = new Date(date).getTime();
                         if ( _time > start && _time < end) {
-                            status.selected = true;
-                            status.isRange = true;
+                            status.selected = status.innerSelected = true;
                         }
+                    }
+
+                    let dayInfo = {
+                        ...(dayMaps[date] || {}),
+                        ...status
                     }
 
                     let _props = newArr[j] || {};
 
-                    cell.push(<Day dayInfo={dayMaps[date]} key={j} {..._props} status={status} onPress={onPress}/>)
+                    cell.push(<Day dayInfo={dayInfo} renderDate={renderDate} animate={animate} key={j} onPress={onPress}/>)
                 }
             }
             row.push(<View style={styles.row} key={i}>{cell}</View>);
@@ -283,62 +295,130 @@ class Month extends Component {
 }
 
 class Day extends Component {
+
     _onPress(date, e) {
-        this.props.onPress(date);
+
+        const { dayInfo } = this.props;
+        const { text, selected, innerSelected, holiday, note, active } = dayInfo;
+        const param = { selected, innerSelected, date, text };
+
+        this.props.onPress(param, e);
+    }
+
+    renderDate() {
+
+        const { dayInfo, renderDate} = this.props;
+        const { date, text, selected, innerSelected, holiday, note, active } = dayInfo;
+        const param = { selected, innerSelected, date, text };
+        const result = renderDate && renderDate(param);
+
+        return {
+            text,
+            dateTextStyle: {},
+            dateBoxStyle: {},
+            noteTextStyle: {},
+            ...result
+        }
     }
 
     shouldComponentUpdate(nextProps) {
 
         return (
-            nextProps.status.selected !== this.props.status.selected ||
-            nextProps.status.isRange !== this.props.status.isRange
+            nextProps.dayInfo.selected !== this.props.dayInfo.selected ||
+            nextProps.dayInfo.innerSelected !== this.props.dayInfo.innerSelected
         )
     }
 
     render() {
-        let { date, text, status, dayInfo } = this.props;
+        const {  dayInfo, renderDate, animate } = this.props;
+        const { date, text, selected, innerSelected, disable, holiday, note } = dayInfo;
 
+        /**
+         * blank day
+         */
         if (!date) {
             return <View style={styles.dayItem} />;
         }
 
-        let style = {};
+        /**
+         * customer render date
+         * @type {Object}
+         */
+        const param = { date, text, selected, innerSelected, disable };
+        const customRender = renderDate && renderDate(param);
+
+        // selected text
         let selectedStyle = {};
 
-        if (status.selected) {
-            if (status.isRange) {
-                selectedStyle.color = '#108ee9';
-            } else {
-                style.backgroundColor = '#108ee9';
-                selectedStyle.color = '#fff';
-            }
-            selectedStyle.fontSize = 16;
+        // item View style
+        let dayBoxStyle = [
+            styles.dayItemInner
+        ];
+
+        // date text style
+        let dayTextStyle = [
+            styles.dateText
+        ];
+
+        // note text style
+        let noteTextStyle = [
+            styles.noteText
+        ]
+
+        if (holiday) {
+            dayBoxStyle.push(holiday.style);
+            dayTextStyle.push(holiday.textStyle);
         }
 
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        if (note) {
+            noteTextStyle.push(note.textStyle);
+        }
+
+        if (selected) {
+            // in range
+            if (innerSelected) {
+                selectedStyle.color = THEME_COLOR;
+            } else {
+                dayBoxStyle.push(styles.dayItemActive);
+                dayBoxStyle.push(styles.dayItemActiveFill);
+                selectedStyle.color = '#fff';
+            }
+            dayTextStyle.push(selectedStyle);
+        }
+
+        //finnaly show text
+        var showText = (holiday && holiday.text) || text;
+
+        //note text
+        var noteText = (note && note.text);
+
+        var dateJSX = [
+                <View style={dayBoxStyle}
+                    key={0}
+                    activeOpacity={0.9}
+                    ref={(c) => this._refDay = c}>
+                    <View>
+                        <Text style={dayTextStyle}>{showText}</Text>
+                    </View>
+                </View>,
+
+                <View style={styles.dayNoteTextItem} key={1}>
+                    <Text style={noteTextStyle}>{noteText}</Text>
+                </View>];
+
+        animate && LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
         return (
-            <View style={styles.dayItem}>
-                <TouchableHighlight
-                    underlayColor="#108ee9"
-                    style={[styles.dayItemInner, style]}
-                    ref={(c) => this._refDay = c}
-                    onPress={(e) => this._onPress(date, e)}
-                    >
-                    <View>
-                        <Text style={[styles.dateText, selectedStyle]}>{dayInfo && dayInfo.holiday && dayInfo.holiday.text || text}</Text>
-                    </View>
-                </TouchableHighlight>
-                <View style={styles.dayTextItem}>
-                    {dayInfo && dayInfo.note && dayInfo.note.text && <Text>{dayInfo.note.text}</Text>}
-                </View>
-            </View>
+            <TouchableOpacity activeOpacity={0.9} style={styles.dayItem} onPress={(e) => this._onPress(date, e)}>
+                {customRender || dateJSX}
+            </TouchableOpacity>
         )
     }
 }
 const { hairlineWidth, create } = StyleSheet;
 const dayItemSize = (width / 7) - 1;
 const dayItemInner = dayItemSize - 15;
+const THEME_COLOR = '#11c1f3';
 const styles = create({
     container: {
         flex: 1,
@@ -373,32 +453,45 @@ const styles = create({
     },
     dayItem: {
         alignItems: 'center',
-        justifyContent: 'center',
         width: dayItemSize,
-        height: dayItemSize + 15,
+        height: dayItemSize,
+        paddingTop: 5,
         paddingBottom: 15,
-        overflow: 'hidden',
-        // borderBottomWidth: hairlineWidth,
-        // borderBottomColor: '#eee'
+        overflow: 'hidden'
     },
     dayItemInner: {
-        height: dayItemInner,
-        width: dayItemInner,
+        height: 30,
+        width: dayItemSize,
         overflow: 'hidden',
         alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: (dayItemInner)/2
+        justifyContent: 'center'
+    },
+    dayItemActive: {
+        width: 30,
+        borderRadius: 15
+    },
+    dayItemActiveFill: {
+        backgroundColor: THEME_COLOR
+    },
+    dayItemActiveBorder: {
+        borderWidth: 1,
+        borderColor: THEME_COLOR
+    },
+    holidayText: {
+        fontSize: 12
     },
     dateText: {
         color: '#333',
         fontSize: 14
     },
-    dayTextItem: {
-        position: 'absolute',
-        bottom: 0,
+    dayNoteTextItem: {
         width: dayItemSize,
         height: 15,
-        alignItems: 'center'
+        alignItems: 'center',
+        justifyContent: 'flex-start',
     },
 
+    noteText: {
+        fontSize: 10
+    }
 });
