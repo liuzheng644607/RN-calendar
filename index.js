@@ -20,6 +20,8 @@ import moment from 'moment';
 UIManager.setLayoutAnimationEnabledExperimental && UIManager.setLayoutAnimationEnabledExperimental(true);
 
 const { width, height } = Dimensions.get('window');
+const today = new Date(),
+      todayStr = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
 
 export default class Calendar extends Component {
 
@@ -29,7 +31,27 @@ export default class Calendar extends Component {
         disabledDate: () => null,
         // onChange: (e) => {console.log(e);},
         selectedDate: ['2017-04-01', '2017-04-03'],
-        range: true
+        range: true,
+
+        holiday: {
+            '2017-05-01': {
+                text: '劳动节',
+                textStyle: {},
+                style: {}
+            }
+        },
+
+        active: {
+            [todayStr]: {
+                text: '今天'
+            }
+        },
+
+        note: {
+            '2017-06-30': {
+                text: '特价'
+            }
+        }
     }
 
     //
@@ -78,7 +100,7 @@ export default class Calendar extends Component {
 
             stickyHeaderIndices.push(scrollItem.length - 1);
 
-            scrollItem.push(<Month key={scrollItem.length} selected={this.state.selectedDate} onPress={(date) => this._onPress(date)} {...item}/>)
+            scrollItem.push(<Month key={scrollItem.length} {...this.props} selected={this.state.selectedDate} onPress={(date) => this._onPress(date)} {...item}/>)
         });
 
         return (
@@ -169,11 +191,13 @@ class Month extends Component {
     }
 
     _makeMonth() {
-        let { month, year, onPress, selected } = this.props;
+        let { month, year, onPress, selected, holiday, note } = this.props;
         if (!this._allDate) {
-            let startDay    = moment().year(year).month(month).date(1),
+            var startDay    = moment().year(year).month(month).date(1),
             endDay          = moment().year(year).month(month).date(1).add(1, 'month'),
             days            = [];
+
+            this._dayMaps = {};
 
             while (endDay.isAfter(startDay, 'day')) {
                 let date = startDay.format('YYYY-MM-DD');
@@ -183,12 +207,19 @@ class Month extends Component {
                     text: startDay.date()
                 });
 
+                this._dayMaps[date] = {};
+
                 startDay = startDay.add(1, 'day');
             }
 
             var emptyDays = (new Array(moment().year(year).month(month).date(0).day())).fill(0);
             this._allDate = emptyDays.concat(days);
         }
+
+        var dayMaps = this._dayMaps;
+
+        this._mergeDateData('holiday', holiday, dayMaps);
+        this._mergeDateData('note', note, dayMaps);
 
         var newArr = this._allDate;
         var len = newArr.length;
@@ -223,7 +254,7 @@ class Month extends Component {
 
                     let _props = newArr[j] || {};
 
-                    cell.push(<Day key={j} {..._props} status={status} onPress={onPress}/>)
+                    cell.push(<Day dayInfo={dayMaps[date]} key={j} {..._props} status={status} onPress={onPress}/>)
                 }
             }
             row.push(<View style={styles.row} key={i}>{cell}</View>);
@@ -239,6 +270,16 @@ class Month extends Component {
     render() {
         return this._makeMonth();
     }
+
+    _mergeDateData(name, content, dayMaps) {
+        if(content){
+            for (var date in content) {
+                if (content.hasOwnProperty(date)) {
+                    dayMaps[date] && (dayMaps[date][name] = content[date]);
+                }
+            }
+        }
+    }
 }
 
 class Day extends Component {
@@ -247,19 +288,23 @@ class Day extends Component {
     }
 
     shouldComponentUpdate(nextProps) {
-        let a = nextProps.status.selected === !this.props.status.selected;
-        return a
+
+        return (
+            nextProps.status.selected !== this.props.status.selected ||
+            nextProps.status.isRange !== this.props.status.isRange
+        )
     }
 
     render() {
-        let { date, text, status } = this.props;
+        let { date, text, status, dayInfo } = this.props;
 
         if (!date) {
             return <View style={styles.dayItem} />;
         }
 
         let style = {};
-        let selectedStyle = {}
+        let selectedStyle = {};
+
         if (status.selected) {
             if (status.isRange) {
                 selectedStyle.color = '#108ee9';
@@ -281,10 +326,11 @@ class Day extends Component {
                     onPress={(e) => this._onPress(date, e)}
                     >
                     <View>
-                        <Text style={[styles.dateText, selectedStyle]}>{text}</Text>
+                        <Text style={[styles.dateText, selectedStyle]}>{dayInfo && dayInfo.holiday && dayInfo.holiday.text || text}</Text>
                     </View>
                 </TouchableHighlight>
                 <View style={styles.dayTextItem}>
+                    {dayInfo && dayInfo.note && dayInfo.note.text && <Text>{dayInfo.note.text}</Text>}
                 </View>
             </View>
         )
