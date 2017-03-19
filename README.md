@@ -16,6 +16,8 @@ npm install react-native-range-calendar --save
 ```
 
 ## Demo
+see [demo](./demo/)
+
 ``` javascript
 class CalendarDemo extends Component {
 
