@@ -1,6 +1,6 @@
 {
   "name": "react-native-range-calendar",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A calendar for react-native",
   "main": "index.js",
   "directories": {
