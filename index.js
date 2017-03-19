@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 
 import React, {
-    Component
+    Component,
+    PropTypes
 } from 'react';
 
 import moment from 'moment';
@@ -25,26 +26,101 @@ let DATE_FORMAT = 'YYYY-MM-DD';
 
 export default class Calendar extends Component {
 
+    state = {
+        dataSource: [],
+        selectedDate: this.props.selectedDate
+    }
+
     static defaultProps = {
         showDateRange: [moment().format(DATE_FORMAT), moment().add(100, 'day').format(DATE_FORMAT)],
         enableDateRange: [moment().format(DATE_FORMAT), moment().add(90, 'day').format(DATE_FORMAT)],
         selectedDate: [],
-        renderHeader: null,
-        renderMonthHeader: null,
-        renderDate: null,
         isRange: true,
         animate: true,
     }
 
-    state = {
-        dataSource: new ListView.DataSource({
-            rowHasChanged: (r1, r2) => r1 !== r2,
-            sectionHeaderHasChanged: (s1, s2) => {
-                alert(s1, s2)
-                return s1 !== s2
-            }
-        }),
-        selectedDate: this.props.selectedDate
+    static propTypes = {
+        /**
+         * the default selected value
+         * like this: ['2017-03-30', '2017-04-09']
+         * @type {[Array]}
+         */
+        selectedDate: PropTypes.array,
+
+        /**
+         * calendar range. Actually ,the calendar will display full month.
+         * example: if showDateRange is ['2017-03-08', '2017-11-11'], the calendar render the month from 03 to 11, the date include 2017-03-01 and 2017-11-31
+         * @type {[Array]}
+         */
+        showDateRange: PropTypes.array,
+
+        /**
+         * the enabled range , this value must belong to the showDateRange Array, it's the sub collection.
+         * @type {[Array]}
+         */
+        enableDateRange: PropTypes.array,
+
+        /**
+         * enabled range select, default value is true;
+         * if the value is false, you can select one date only.
+         * @type {Boolean}
+         */
+        isRange: PropTypes.bool,
+
+        /**
+         * enabled the LayoutAnimation. default is true
+         * @type {[Boolean]}
+         */
+        animate: PropTypes.bool,
+
+        /**
+         * holiday data extentions
+         * example: {'2017-12-25', {text: 'Christmas', textStyle: {color: 'red'}}}
+         *
+         * @type {[object]}
+         */
+        holiday: PropTypes.object,
+
+        /**
+         * the note text , it is under the date text.
+         * example: {'2017-12-25', {text: '🎄', textStyle: {}}}
+         * @type {[object]}
+         */
+        note: PropTypes.object,
+
+        /**
+         * the calendar header renderer, normaly, it is monday to sunday.
+         * @type {[Function]}
+         */
+        renderHeader: PropTypes.func,
+
+        /**
+         * the header of each month renderer.
+         * @param object
+         * @type {[Function]}
+         */
+        renderMonthHeader: PropTypes.func,
+
+        /**
+         * you can get a param, and costom render the date cell
+         * @param object. the param is shape of { selected, innerSelected, date, text, disable }
+         * @type {[Function]}
+         */
+        renderDate: PropTypes.func,
+
+        /**
+         * event， when you change the selected date
+         * @param date|String, info|object, event|Object
+         * @type {[Function]}
+         */
+        onChange: PropTypes.func,
+
+        /**
+         * when you press the date cell, it will be fired enven if the date is disabled.
+         * @param dayInfo|object, event|Object
+         * @type {[Function]}
+         */
+        onPress: PropTypes.func
     }
 
     componentWillMount() {
@@ -72,6 +148,15 @@ export default class Calendar extends Component {
         });
 
         animate && UIManager.setLayoutAnimationEnabledExperimental && UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+
+    componentWillReceiveProps(nextProps) {
+
+        if (JSON.stringify(nextProps.selectedDate) !== JSON.stringify(this.props.selectedDate)) {
+            this.setState({
+                selectedDate: nextProps.selectedDate
+            })
+        }
     }
 
     _renderScrollView() {
@@ -308,7 +393,7 @@ class Day extends Component {
 
         const { dayInfo } = this.props;
         const { text, selected, innerSelected, disable, holiday, note, active } = dayInfo;
-        const param = { selected, innerSelected, date, text, disable };
+        const param = dayInfo;
 
         this.props.onPress(param, e);
     }
@@ -336,7 +421,7 @@ class Day extends Component {
          * customer render date
          * @type {Object}
          */
-        const param = { date, text, selected, innerSelected, disable };
+        const param = dayInfo;
         const customRender = renderDate && renderDate(param);
 
         // selected text
